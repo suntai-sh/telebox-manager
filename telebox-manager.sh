@@ -336,6 +336,33 @@ services:
 EOF
 }
 
+run_instance_login() {
+  local name="$1"
+  ensure_instance_exists "$name"
+
+  local dir session_file
+  dir="$(instance_dir "$name")"
+  session_file="$dir/data/my_session.session"
+
+  warn "即将进入实例登录/初始化流程：$name"
+  warn "如果输错了 api_id、api_hash 或手机号，可按 Ctrl+C 退出后重新进入本功能"
+  echo
+
+  (
+    cd "$dir"
+    docker compose run --rm telebox npm start
+  )
+
+  if [[ ! -f "$session_file" ]]; then
+    warn "未检测到会话文件：$session_file"
+    warn "如果刚才中途输错或主动退出，这是正常的；重新执行“重新初始化实例”即可"
+    return 1
+  fi
+
+  ok "实例登录/初始化完成：$name"
+  return 0
+}
+
 install_instance() {
   local name="$1"
   local dir
@@ -355,23 +382,12 @@ install_instance() {
 
   ok "实例已创建：$name"
   echo
-  warn "接下来开始首次初始化：$name"
-  warn "你需要按提示输入 api_id、api_hash、手机号、验证码、二步验证密码（如果有）"
-  echo
 
-  (
-    cd "$dir"
-    docker compose run --rm telebox npm start
-  )
-
-  local session_file="$dir/data/my_session.session"
-  if [[ ! -f "$session_file" ]]; then
-    err "首次初始化似乎未完成：未检测到会话文件 $session_file"
-    warn "请重新执行安装，或进入实例目录手动运行：docker compose run --rm telebox npm start"
-    exit 1
+  if ! run_instance_login "$name"; then
+    warn "首次初始化未完成，实例目录已保留：$dir"
+    warn "你可以稍后通过“重新初始化实例”继续登录"
+    return 1
   fi
-
-  ok "首次初始化完成：$name"
 
   info "启动后台服务：$name"
   (
@@ -520,6 +536,7 @@ show_usage() {
   bash $0 install-docker          自动安装 Docker 与 Compose
   bash $0 uninstall-docker        卸载 Docker 并删除全部 Docker 数据
   bash $0 install <实例名>        安装并初始化新实例
+  bash $0 relogin <实例名>        重新进入实例登录/初始化流程
   bash $0 start <实例名>          启动实例
   bash $0 stop <实例名>           停止实例
   bash $0 restart <实例名>        重启实例
@@ -571,16 +588,17 @@ show_menu() {
 1. 安装 Docker
 2. 卸载 Docker
 3. 安装 TeleBox 实例
-4. 查看实例列表
-5. 启动实例
-6. 停止实例
-7. 重启实例
-8. 查看实例状态
-9. 查看实例日志
-10. 更新实例
-11. 备份实例
-12. 删除实例
-13. 查看命令帮助
+4. 重新初始化实例
+5. 查看实例列表
+6. 启动实例
+7. 停止实例
+8. 重启实例
+9. 查看实例状态
+10. 查看实例日志
+11. 更新实例
+12. 备份实例
+13. 删除实例
+14. 查看命令帮助
 0. 退出
 EOF
 }
@@ -608,56 +626,62 @@ interactive_menu() {
         pause_wait
         ;;
       4)
-        list_instances
+        check_docker
+        prompt_instance_name '请输入要重新初始化的实例名'
+        run_instance_login "$PROMPT_RESULT"
         pause_wait
         ;;
       5)
+        list_instances
+        pause_wait
+        ;;
+      6)
         check_docker
         prompt_instance_name '请输入要启动的实例名'
         start_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      6)
+      7)
         check_docker
         prompt_instance_name '请输入要停止的实例名'
         stop_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      7)
+      8)
         check_docker
         prompt_instance_name '请输入要重启的实例名'
         restart_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      8)
+      9)
         check_docker
         prompt_instance_name '请输入要查看状态的实例名'
         status_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      9)
+      10)
         check_docker
         prompt_instance_name '请输入要查看日志的实例名'
         logs_instance "$PROMPT_RESULT"
         ;;
-      10)
+      11)
         check_docker
         prompt_instance_name '请输入要更新的实例名'
         update_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      11)
+      12)
         prompt_instance_name '请输入要备份的实例名'
         backup_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      12)
+      13)
         check_docker
         prompt_instance_name '请输入要删除的实例名'
         remove_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      13)
+      14)
         show_usage
         pause_wait
         ;;
@@ -689,6 +713,12 @@ run_action() {
       mkdir -p "$BASE_DIR"
       validate_name "$name"
       install_instance "$name"
+      ;;
+    relogin)
+      check_docker
+      mkdir -p "$BASE_DIR"
+      validate_name "$name"
+      run_instance_login "$name"
       ;;
     start)
       check_docker
