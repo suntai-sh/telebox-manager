@@ -573,6 +573,37 @@ update_instance() {
   ok "实例已更新并启动：$name"
 }
 
+migrate_restart_policy() {
+  mkdir -p "$BASE_DIR"
+
+  local found=0 updated=0 dir compose name
+  for dir in "$BASE_DIR"/*; do
+    [[ -d "$dir" ]] || continue
+    name="$(basename "$dir")"
+    [[ "$name" == "backups" || "$name" == ".trash" ]] && continue
+    compose="$dir/docker-compose.yml"
+    [[ -f "$compose" ]] || continue
+    found=1
+
+    if grep -q 'restart: unless-stopped' "$compose"; then
+      sed -i 's/restart: unless-stopped/restart: "no"/' "$compose"
+      ok "已修复实例重启策略：$name"
+      updated=$((updated + 1))
+    elif grep -q 'restart: "no"' "$compose"; then
+      info "实例已是新策略：$name"
+    else
+      warn "实例 compose 中未找到可识别的 restart 配置：$name"
+    fi
+  done
+
+  if [[ "$found" -eq 0 ]]; then
+    warn "暂无可修复的实例"
+    return 0
+  fi
+
+  ok "统一修复完成，共更新 $updated 个实例"
+}
+
 remove_instance() {
   local name="$1"
   ensure_instance_exists "$name"
@@ -620,6 +651,7 @@ show_usage() {
   bash $0 logs <实例名>           查看日志
   bash $0 status <实例名>         查看状态
   bash $0 list                    查看所有实例
+  bash $0 migrate-restart         统一修复旧实例的重启策略
   bash $0 remove <实例名>         删除实例（移入回收区）
 
 示例：
@@ -672,8 +704,9 @@ show_menu() {
 10. 查看实例日志
 11. 更新实例
 12. 备份实例
-13. 删除实例
-14. 查看命令帮助
+13. 统一修复旧实例重启策略
+14. 删除实例
+15. 查看命令帮助
 0. 退出
 EOF
 }
@@ -759,6 +792,10 @@ interactive_menu() {
         pause_wait
         ;;
       13)
+        migrate_restart_policy
+        pause_wait
+        ;;
+      14)
         check_docker
         warn "上面是当前可删除的实例列表"
         if choose_instance '请选择要删除的实例'; then
@@ -766,7 +803,7 @@ interactive_menu() {
         fi
         pause_wait
         ;;
-      14)
+      15)
         show_usage
         pause_wait
         ;;
@@ -849,6 +886,10 @@ run_action() {
     list)
       mkdir -p "$BASE_DIR"
       list_instances
+      ;;
+    migrate-restart)
+      mkdir -p "$BASE_DIR"
+      migrate_restart_policy
       ;;
     remove)
       check_docker

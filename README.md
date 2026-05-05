@@ -52,7 +52,8 @@ curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/tel
 10. 查看实例日志
 11. 更新实例
 12. 备份实例
-13. 删除实例
+13. 统一修复旧实例重启策略
+14. 删除实例
 
 除“安装实例”外，其它实例相关操作已改为先显示实例列表，再通过数字编号选择。
 
@@ -74,6 +75,8 @@ curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/tel
 
 实例容器默认关闭无限自动重启；脚本会在启动时最多自动尝试 3 次，3 次失败后停止重试，避免容器一直重启刷屏。
 
+如果你以前创建过旧实例，可以执行“统一修复旧实例重启策略”，把旧的 `restart: unless-stopped` 批量改成 `restart: "no"`。
+
 ### 如果你更喜欢命令行模式
 
 ```bash
@@ -81,6 +84,7 @@ sudo bash telebox-manager.sh install-docker
 sudo bash telebox-manager.sh uninstall-docker
 sudo bash telebox-manager.sh install tg1
 sudo bash telebox-manager.sh relogin tg1
+sudo bash telebox-manager.sh migrate-restart
 sudo bash telebox-manager.sh install tg2
 ```
 
