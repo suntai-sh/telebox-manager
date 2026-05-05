@@ -614,7 +614,7 @@ fix_persistence_links() {
   data="$dir/data"
   backup="$ws/_persist_fix_backup_$(date +%Y%m%d-%H%M%S)"
 
-  mkdir -p "$backup" "$data/plugins" "$data/assets" "$data/logs" "$data/temp" "$data/my_session"
+  mkdir -p "$backup" "$data/plugins" "$data/assets" "$data/assets/tpm" "$data/logs" "$data/temp" "$data/my_session"
 
   info "停止实例以修复持久化目录：$name"
   (
@@ -647,6 +647,13 @@ fix_persistence_links() {
   ln -sfn "$data/temp" "$ws/temp"
   ln -sfn "$data/my_session" "$ws/my_session"
   ln -sfn "$data/config.json" "$ws/config.json"
+
+  if [[ -f "$data/assets/tpm/plugins.json" ]]; then
+    ok "已检测到远程插件记录数据库：$data/assets/tpm/plugins.json"
+  else
+    warn "未检测到远程插件记录数据库：$data/assets/tpm/plugins.json"
+    warn "若插件显示为“本地插件”，请检查是否曾覆盖/清空 assets/tpm/plugins.json"
+  fi
 
   ok "持久化链接已修复：$name"
   warn "备份目录：$backup"
