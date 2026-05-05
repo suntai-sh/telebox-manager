@@ -57,6 +57,44 @@ docker_ready() {
   return 0
 }
 
+docker_present_or_residue() {
+  if command -v docker >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if command -v systemctl >/dev/null 2>&1; then
+    if systemctl list-unit-files 2>/dev/null | grep -q '^docker\.service'; then
+      return 0
+    fi
+    if systemctl list-unit-files 2>/dev/null | grep -q '^docker\.socket'; then
+      return 0
+    fi
+    if systemctl list-unit-files 2>/dev/null | grep -q '^containerd\.service'; then
+      return 0
+    fi
+  fi
+
+  if command -v dpkg >/dev/null 2>&1; then
+    if dpkg -l 2>/dev/null | grep -Eq '^ii\s+(docker-ce|docker-ce-cli|docker-buildx-plugin|docker-compose-plugin|containerd.io|docker.io)\b'; then
+      return 0
+    fi
+  fi
+
+  if command -v rpm >/dev/null 2>&1; then
+    if rpm -qa 2>/dev/null | grep -Eq '^(docker-ce|docker-ce-cli|docker-buildx-plugin|docker-compose-plugin|containerd.io|docker)'; then
+      return 0
+    fi
+  fi
+
+  for path in /var/lib/docker /var/lib/containerd /etc/docker /var/run/docker.sock /var/run/containerd/containerd.sock; do
+    if [[ -e "$path" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 check_docker() {
   if ! docker_ready; then
     err "未检测到可用的 Docker 环境，请先安装 Docker，或执行：bash $0 install-docker"
@@ -107,6 +145,15 @@ install_docker() {
 }
 
 uninstall_docker() {
+  if docker_ready; then
+    info "检测到可用的 Docker 环境，将执行完整卸载"
+  elif docker_present_or_residue; then
+    warn "未检测到可用的 Docker 环境，但发现 Docker 残留，将继续清理"
+  else
+    info "未检测到 Docker 或残留，无需卸载"
+    return 0
+  fi
+
   warn "该操作会删除整台机器的全部 Docker 内容，包括："
   warn "- 所有容器"
   warn "- 所有镜像"
@@ -119,10 +166,6 @@ uninstall_docker() {
   if [[ "$confirm" != "yes" ]]; then
     info "已取消"
     return 0
-  fi
-
-  if ! command -v docker >/dev/null 2>&1; then
-    warn "未检测到 Docker，继续尝试清理残留包和目录"
   fi
 
   info "停止并删除所有容器..."
