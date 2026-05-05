@@ -608,14 +608,28 @@ rebuild_remote_plugin_records() {
   local name="$1"
   ensure_instance_exists "$name"
 
-  local dir data db plugdir tmp_index
+  local dir data db plugdir tmp_index backup_db
   dir="$(instance_dir "$name")"
   data="$dir/data"
   db="$data/assets/tpm/plugins.json"
   plugdir="$data/plugins"
   tmp_index="$(mktemp)"
+  backup_db="$data/assets/tpm/plugins.json.force-rebuild-backup-$(date +%Y%m%d-%H%M%S)"
 
   mkdir -p "$data/assets/tpm"
+
+  warn "该功能会按远程插件索引强制重建远程插件记录数据库"
+  warn "如果你的实例里同时有本地插件和远程插件，这可能会把同名本地插件也标记成远程插件"
+  read -r -p "确认强制重建请输入 yes: " confirm
+  if [[ "$confirm" != "yes" ]]; then
+    info "已取消"
+    return 0
+  fi
+
+  if [[ -f "$db" ]]; then
+    cp "$db" "$backup_db"
+    warn "已备份当前数据库到：$backup_db"
+  fi
 
   info "下载远程插件索引..."
   curl -fsSL "https://raw.githubusercontent.com/TeleBoxDev/TeleBox_Plugins/main/plugins.json" -o "$tmp_index"
@@ -646,7 +660,7 @@ print("rebuilt_names=" + ",".join(sorted(db.keys())))
 PY
 
   rm -f "$tmp_index"
-  ok "远程插件记录数据库已重建：$db"
+  ok "远程插件记录数据库已强制重建：$db"
 }
 
 fix_persistence_links() {
@@ -697,8 +711,8 @@ fix_persistence_links() {
     ok "已检测到远程插件记录数据库：$data/assets/tpm/plugins.json"
   else
     warn "未检测到远程插件记录数据库：$data/assets/tpm/plugins.json"
-    warn "现在尝试自动重建远程插件记录..."
-    rebuild_remote_plugin_records "$name"
+    warn "若插件显示为“本地插件”，可手动执行“重建远程插件记录数据库”"
+    warn "注意：强制重建可能把同名本地插件也标记成远程插件"
   fi
 
   ok "持久化链接已修复：$name"

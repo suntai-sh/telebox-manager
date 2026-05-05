@@ -81,7 +81,7 @@ curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/tel
 
 如果关闭/重启后插件或插件配置丢失，可以执行“修复实例插件/配置持久化”。它会把误放在 `workspace/plugins` 的插件迁移到 `data/plugins`，并把 `plugins/assets/logs/temp/my_session/config.json` 重新链接到持久化的 `data/` 目录。
 
-它还会检查远程插件记录数据库：`data/assets/tpm/plugins.json`。如果这个文件缺失，远程插件可能会被识别成本地插件，并会尝试自动重建。
+它还会检查远程插件记录数据库：`data/assets/tpm/plugins.json`。如果这个文件缺失，远程插件可能会被识别成本地插件。你可以手动使用“重建远程插件记录数据库”，但注意：强制重建会按远程索引匹配插件名，可能把同名本地插件也标记成远程插件。
 
 ### 如果你更喜欢命令行模式
 
