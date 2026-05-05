@@ -353,6 +353,8 @@ show_usage() {
 EOF
 }
 
+PROMPT_RESULT=""
+
 prompt_instance_name() {
   local prompt_text="${1:-请输入实例名}"
   local name
@@ -366,7 +368,7 @@ prompt_instance_name() {
       warn "实例名只允许字母、数字、点、下划线、短横线"
       continue
     fi
-    echo "$name"
+    PROMPT_RESULT="$name"
     return 0
   done
 }
@@ -412,9 +414,8 @@ interactive_menu() {
         ;;
       2)
         check_docker
-        local name
-        name="$(prompt_instance_name '请输入要安装的实例名')"
-        install_instance "$name"
+        prompt_instance_name '请输入要安装的实例名'
+        install_instance "$PROMPT_RESULT"
         pause_wait
         ;;
       3)
@@ -423,56 +424,48 @@ interactive_menu() {
         ;;
       4)
         check_docker
-        local name
-        name="$(prompt_instance_name '请输入要启动的实例名')"
-        start_instance "$name"
+        prompt_instance_name '请输入要启动的实例名'
+        start_instance "$PROMPT_RESULT"
         pause_wait
         ;;
       5)
         check_docker
-        local name
-        name="$(prompt_instance_name '请输入要停止的实例名')"
-        stop_instance "$name"
+        prompt_instance_name '请输入要停止的实例名'
+        stop_instance "$PROMPT_RESULT"
         pause_wait
         ;;
       6)
         check_docker
-        local name
-        name="$(prompt_instance_name '请输入要重启的实例名')"
-        restart_instance "$name"
+        prompt_instance_name '请输入要重启的实例名'
+        restart_instance "$PROMPT_RESULT"
         pause_wait
         ;;
       7)
         check_docker
-        local name
-        name="$(prompt_instance_name '请输入要查看状态的实例名')"
-        status_instance "$name"
+        prompt_instance_name '请输入要查看状态的实例名'
+        status_instance "$PROMPT_RESULT"
         pause_wait
         ;;
       8)
         check_docker
-        local name
-        name="$(prompt_instance_name '请输入要查看日志的实例名')"
-        logs_instance "$name"
+        prompt_instance_name '请输入要查看日志的实例名'
+        logs_instance "$PROMPT_RESULT"
         ;;
       9)
         check_docker
-        local name
-        name="$(prompt_instance_name '请输入要更新的实例名')"
-        update_instance "$name"
+        prompt_instance_name '请输入要更新的实例名'
+        update_instance "$PROMPT_RESULT"
         pause_wait
         ;;
       10)
-        local name
-        name="$(prompt_instance_name '请输入要备份的实例名')"
-        backup_instance "$name"
+        prompt_instance_name '请输入要备份的实例名'
+        backup_instance "$PROMPT_RESULT"
         pause_wait
         ;;
       11)
         check_docker
-        local name
-        name="$(prompt_instance_name '请输入要删除的实例名')"
-        remove_instance "$name"
+        prompt_instance_name '请输入要删除的实例名'
+        remove_instance "$PROMPT_RESULT"
         pause_wait
         ;;
       12)
