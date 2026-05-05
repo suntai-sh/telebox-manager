@@ -14,12 +14,10 @@ TeleBox 多开管理脚本，适合一台机器管理多个 TeleBox 实例。
 
 ---
 
-## 兼容方式运行
+## 下载并运行
 
 ```bash
-curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/telebox-manager/main/telebox-manager.sh
-chmod +x telebox-manager.sh
-sudo bash telebox-manager.sh
+curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/telebox-manager/main/telebox-manager.sh && chmod +x telebox-manager.sh && sudo bash telebox-manager.sh
 ```
 
 运行后会进入数字菜单，按提示选择功能即可。
@@ -34,12 +32,10 @@ sudo bash telebox-manager.sh
 
 ## 首次使用
 
-### 推荐方式：下载后进入菜单
+### 推荐方式：一条命令进入菜单
 
 ```bash
-curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/telebox-manager/main/telebox-manager.sh
-chmod +x telebox-manager.sh
-sudo bash telebox-manager.sh
+curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/telebox-manager/main/telebox-manager.sh && chmod +x telebox-manager.sh && sudo bash telebox-manager.sh
 ```
 
 运行后可直接通过菜单选择：
