@@ -53,7 +53,8 @@ curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/tel
 11. 更新实例
 12. 备份实例
 13. 统一修复旧实例重启策略
-14. 删除实例
+14. 修复实例插件/配置持久化
+15. 删除实例
 
 除“安装实例”外，其它实例相关操作已改为先显示实例列表，再通过数字编号选择。
 
@@ -77,6 +78,8 @@ curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/tel
 
 如果你以前创建过旧实例，可以执行“统一修复旧实例重启策略”，把旧的 `restart: unless-stopped` 批量改成 `restart: "no"`。
 
+如果关闭/重启后插件或插件配置丢失，可以执行“修复实例插件/配置持久化”。它会把误放在 `workspace/plugins` 的插件迁移到 `data/plugins`，并把 `plugins/assets/logs/temp/my_session/config.json` 重新链接到持久化的 `data/` 目录。
+
 ### 如果你更喜欢命令行模式
 
 ```bash
@@ -85,6 +88,7 @@ sudo bash telebox-manager.sh uninstall-docker
 sudo bash telebox-manager.sh install tg1
 sudo bash telebox-manager.sh relogin tg1
 sudo bash telebox-manager.sh migrate-restart
+sudo bash telebox-manager.sh fix-persistence tg1
 sudo bash telebox-manager.sh install tg2
 ```
 

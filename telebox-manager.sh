@@ -604,6 +604,55 @@ migrate_restart_policy() {
   ok "统一修复完成，共更新 $updated 个实例"
 }
 
+fix_persistence_links() {
+  local name="$1"
+  ensure_instance_exists "$name"
+
+  local dir ws data backup item f bn
+  dir="$(instance_dir "$name")"
+  ws="$dir/workspace"
+  data="$dir/data"
+  backup="$ws/_persist_fix_backup_$(date +%Y%m%d-%H%M%S)"
+
+  mkdir -p "$backup" "$data/plugins" "$data/assets" "$data/logs" "$data/temp" "$data/my_session"
+
+  info "停止实例以修复持久化目录：$name"
+  (
+    cd "$dir"
+    docker compose down || true
+  )
+
+  for item in plugins assets logs temp my_session config.json; do
+    if [[ -e "$ws/$item" && ! -L "$ws/$item" ]]; then
+      mv "$ws/$item" "$backup/$item"
+      info "已备份 workspace/$item 到 $backup/$item"
+    fi
+  done
+
+  if [[ -d "$backup/plugins" ]]; then
+    while IFS= read -r f; do
+      bn="$(basename "$f")"
+      if [[ ! -e "$data/plugins/$bn" ]]; then
+        mv "$f" "$data/plugins/$bn"
+        ok "已迁移插件：$bn"
+      else
+        warn "data/plugins 已存在同名插件，保留备份中的文件：$bn"
+      fi
+    done < <(find "$backup/plugins" -maxdepth 1 -type f 2>/dev/null)
+  fi
+
+  ln -sfn "$data/plugins" "$ws/plugins"
+  ln -sfn "$data/assets" "$ws/assets"
+  ln -sfn "$data/logs" "$ws/logs"
+  ln -sfn "$data/temp" "$ws/temp"
+  ln -sfn "$data/my_session" "$ws/my_session"
+  ln -sfn "$data/config.json" "$ws/config.json"
+
+  ok "持久化链接已修复：$name"
+  warn "备份目录：$backup"
+  warn "请启动实例后检查插件是否正常"
+}
+
 remove_instance() {
   local name="$1"
   ensure_instance_exists "$name"
@@ -652,6 +701,7 @@ show_usage() {
   bash $0 status <实例名>         查看状态
   bash $0 list                    查看所有实例
   bash $0 migrate-restart         统一修复旧实例的重启策略
+  bash $0 fix-persistence <实例名> 修复实例插件/配置持久化链接
   bash $0 remove <实例名>         删除实例（移入回收区）
 
 示例：
@@ -705,8 +755,9 @@ show_menu() {
 11. 更新实例
 12. 备份实例
 13. 统一修复旧实例重启策略
-14. 删除实例
-15. 查看命令帮助
+14. 修复实例插件/配置持久化
+15. 删除实例
+16. 查看命令帮助
 0. 退出
 EOF
 }
@@ -797,13 +848,20 @@ interactive_menu() {
         ;;
       14)
         check_docker
+        if choose_instance '请选择要修复持久化的实例'; then
+          fix_persistence_links "$PROMPT_RESULT"
+        fi
+        pause_wait
+        ;;
+      15)
+        check_docker
         warn "上面是当前可删除的实例列表"
         if choose_instance '请选择要删除的实例'; then
           remove_instance "$PROMPT_RESULT"
         fi
         pause_wait
         ;;
-      15)
+      16)
         show_usage
         pause_wait
         ;;
@@ -890,6 +948,12 @@ run_action() {
     migrate-restart)
       mkdir -p "$BASE_DIR"
       migrate_restart_policy
+      ;;
+    fix-persistence)
+      check_docker
+      mkdir -p "$BASE_DIR"
+      validate_name "$name"
+      fix_persistence_links "$name"
       ;;
     remove)
       check_docker
