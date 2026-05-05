@@ -604,6 +604,51 @@ migrate_restart_policy() {
   ok "统一修复完成，共更新 $updated 个实例"
 }
 
+rebuild_remote_plugin_records() {
+  local name="$1"
+  ensure_instance_exists "$name"
+
+  local dir data db plugdir tmp_index
+  dir="$(instance_dir "$name")"
+  data="$dir/data"
+  db="$data/assets/tpm/plugins.json"
+  plugdir="$data/plugins"
+  tmp_index="$(mktemp)"
+
+  mkdir -p "$data/assets/tpm"
+
+  info "下载远程插件索引..."
+  curl -fsSL "https://raw.githubusercontent.com/TeleBoxDev/TeleBox_Plugins/main/plugins.json" -o "$tmp_index"
+
+  python3 - <<PY
+import json, os, time
+plugdir = ${plugdir@Q}
+db_path = ${db@Q}
+index_path = ${tmp_index@Q}
+with open(index_path, 'r', encoding='utf-8') as f:
+    index = json.load(f)
+plugin_files = [f for f in os.listdir(plugdir) if f.endswith('.ts')]
+plugin_names = [os.path.splitext(f)[0] for f in plugin_files]
+db = {}
+now = int(time.time() * 1000)
+for name in plugin_names:
+    meta = index.get(name)
+    if isinstance(meta, dict) and 'url' in meta:
+        db[name] = {
+            'url': meta['url'],
+            'desc': meta.get('desc', ''),
+            '_updatedAt': now,
+        }
+with open(db_path, 'w', encoding='utf-8') as f:
+    json.dump(db, f, ensure_ascii=False, indent=2)
+print(f"rebuilt_entries={len(db)}")
+print("rebuilt_names=" + ",".join(sorted(db.keys())))
+PY
+
+  rm -f "$tmp_index"
+  ok "远程插件记录数据库已重建：$db"
+}
+
 fix_persistence_links() {
   local name="$1"
   ensure_instance_exists "$name"
@@ -652,7 +697,8 @@ fix_persistence_links() {
     ok "已检测到远程插件记录数据库：$data/assets/tpm/plugins.json"
   else
     warn "未检测到远程插件记录数据库：$data/assets/tpm/plugins.json"
-    warn "若插件显示为“本地插件”，请检查是否曾覆盖/清空 assets/tpm/plugins.json"
+    warn "现在尝试自动重建远程插件记录..."
+    rebuild_remote_plugin_records "$name"
   fi
 
   ok "持久化链接已修复：$name"
@@ -709,6 +755,7 @@ show_usage() {
   bash $0 list                    查看所有实例
   bash $0 migrate-restart         统一修复旧实例的重启策略
   bash $0 fix-persistence <实例名> 修复实例插件/配置持久化链接
+  bash $0 rebuild-remote-db <实例名> 重建远程插件记录数据库
   bash $0 remove <实例名>         删除实例（移入回收区）
 
 示例：
@@ -763,8 +810,9 @@ show_menu() {
 12. 备份实例
 13. 统一修复旧实例重启策略
 14. 修复实例插件/配置持久化
-15. 删除实例
-16. 查看命令帮助
+15. 重建远程插件记录数据库
+16. 删除实例
+17. 查看命令帮助
 0. 退出
 EOF
 }
@@ -862,13 +910,20 @@ interactive_menu() {
         ;;
       15)
         check_docker
+        if choose_instance '请选择要重建远程插件记录的实例'; then
+          rebuild_remote_plugin_records "$PROMPT_RESULT"
+        fi
+        pause_wait
+        ;;
+      16)
+        check_docker
         warn "上面是当前可删除的实例列表"
         if choose_instance '请选择要删除的实例'; then
           remove_instance "$PROMPT_RESULT"
         fi
         pause_wait
         ;;
-      16)
+      17)
         show_usage
         pause_wait
         ;;
@@ -961,6 +1016,12 @@ run_action() {
       mkdir -p "$BASE_DIR"
       validate_name "$name"
       fix_persistence_links "$name"
+      ;;
+    rebuild-remote-db)
+      check_docker
+      mkdir -p "$BASE_DIR"
+      validate_name "$name"
+      rebuild_remote_plugin_records "$name"
       ;;
     remove)
       check_docker

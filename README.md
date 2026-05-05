@@ -54,7 +54,8 @@ curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/tel
 12. 备份实例
 13. 统一修复旧实例重启策略
 14. 修复实例插件/配置持久化
-15. 删除实例
+15. 重建远程插件记录数据库
+16. 删除实例
 
 除“安装实例”外，其它实例相关操作已改为先显示实例列表，再通过数字编号选择。
 
@@ -80,7 +81,7 @@ curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/tel
 
 如果关闭/重启后插件或插件配置丢失，可以执行“修复实例插件/配置持久化”。它会把误放在 `workspace/plugins` 的插件迁移到 `data/plugins`，并把 `plugins/assets/logs/temp/my_session/config.json` 重新链接到持久化的 `data/` 目录。
 
-它还会检查远程插件记录数据库：`data/assets/tpm/plugins.json`。如果这个文件缺失，远程插件可能会被识别成本地插件。
+它还会检查远程插件记录数据库：`data/assets/tpm/plugins.json`。如果这个文件缺失，远程插件可能会被识别成本地插件，并会尝试自动重建。
 
 ### 如果你更喜欢命令行模式
 
@@ -91,6 +92,7 @@ sudo bash telebox-manager.sh install tg1
 sudo bash telebox-manager.sh relogin tg1
 sudo bash telebox-manager.sh migrate-restart
 sudo bash telebox-manager.sh fix-persistence tg1
+sudo bash telebox-manager.sh rebuild-remote-db tg1
 sudo bash telebox-manager.sh install tg2
 ```
 
