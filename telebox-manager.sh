@@ -57,44 +57,78 @@ docker_ready() {
   return 0
 }
 
+DOCKER_DETECT_REASON=""
+
 docker_present_or_residue() {
+  DOCKER_DETECT_REASON=""
+
   if command -v docker >/dev/null 2>&1; then
+    DOCKER_DETECT_REASON="检测到 docker 命令仍存在"
     return 0
   fi
 
   if command -v systemctl >/dev/null 2>&1; then
-    if systemctl is-active docker >/dev/null 2>&1 || systemctl is-enabled docker >/dev/null 2>&1; then
+    if systemctl is-active docker >/dev/null 2>&1; then
+      DOCKER_DETECT_REASON="docker 服务仍处于 active 状态"
       return 0
     fi
-    if systemctl is-active docker.socket >/dev/null 2>&1 || systemctl is-enabled docker.socket >/dev/null 2>&1; then
+    if systemctl is-enabled docker >/dev/null 2>&1; then
+      DOCKER_DETECT_REASON="docker 服务仍处于 enabled 状态"
       return 0
     fi
-    if systemctl is-active containerd >/dev/null 2>&1 || systemctl is-enabled containerd >/dev/null 2>&1; then
+    if systemctl is-active docker.socket >/dev/null 2>&1; then
+      DOCKER_DETECT_REASON="docker.socket 仍处于 active 状态"
+      return 0
+    fi
+    if systemctl is-enabled docker.socket >/dev/null 2>&1; then
+      DOCKER_DETECT_REASON="docker.socket 仍处于 enabled 状态"
+      return 0
+    fi
+    if systemctl is-active containerd >/dev/null 2>&1; then
+      DOCKER_DETECT_REASON="containerd 服务仍处于 active 状态"
+      return 0
+    fi
+    if systemctl is-enabled containerd >/dev/null 2>&1; then
+      DOCKER_DETECT_REASON="containerd 服务仍处于 enabled 状态"
       return 0
     fi
   fi
 
   if command -v dpkg >/dev/null 2>&1; then
-    if dpkg -l 2>/dev/null | grep -Eq '^ii\s+(docker-ce|docker-ce-cli|docker-buildx-plugin|docker-compose-plugin|containerd.io|docker.io)\b'; then
+    local dpkg_match
+    dpkg_match="$(dpkg -l 2>/dev/null | awk '/^ii/ && $2 ~ /^(docker-ce|docker-ce-cli|docker-buildx-plugin|docker-compose-plugin|containerd.io|docker.io)$/ {print $2; exit}')"
+    if [[ -n "$dpkg_match" ]]; then
+      DOCKER_DETECT_REASON="检测到已安装软件包：$dpkg_match"
       return 0
     fi
   fi
 
   if command -v rpm >/dev/null 2>&1; then
-    if rpm -qa 2>/dev/null | grep -Eq '^(docker-ce|docker-ce-cli|docker-buildx-plugin|docker-compose-plugin|containerd.io|docker)'; then
+    local rpm_match
+    rpm_match="$(rpm -qa 2>/dev/null | grep -E '^(docker-ce|docker-ce-cli|docker-buildx-plugin|docker-compose-plugin|containerd.io|docker)$' | head -n 1 || true)"
+    if [[ -n "$rpm_match" ]]; then
+      DOCKER_DETECT_REASON="检测到已安装软件包：$rpm_match"
       return 0
     fi
   fi
 
-  if [[ -S /var/run/docker.sock || -S /var/run/containerd/containerd.sock ]]; then
+  if [[ -S /var/run/docker.sock ]]; then
+    DOCKER_DETECT_REASON="检测到 /var/run/docker.sock 仍存在"
+    return 0
+  fi
+
+  if [[ -S /var/run/containerd/containerd.sock ]]; then
+    DOCKER_DETECT_REASON="检测到 /var/run/containerd/containerd.sock 仍存在"
     return 0
   fi
 
   if [[ -d /var/lib/docker ]] && [[ -n "$(find /var/lib/docker -mindepth 1 -maxdepth 1 2>/dev/null | head -n 1)" ]]; then
+    DOCKER_DETECT_REASON="检测到 /var/lib/docker 中仍有数据"
     return 0
   fi
 
   if [[ -d /var/lib/containerd ]] && [[ -n "$(find /var/lib/containerd -mindepth 1 -maxdepth 1 2>/dev/null | head -n 1)" ]]; then
+    DOCKER_DETECT_REASON="检测到 /var/lib/containerd 中仍有数据"
     return 0
   fi
 
@@ -155,6 +189,7 @@ uninstall_docker() {
     info "检测到可用的 Docker 环境，将执行完整卸载"
   elif docker_present_or_residue; then
     warn "未检测到可用的 Docker 环境，但发现 Docker 残留，将继续清理"
+    warn "残留原因：$DOCKER_DETECT_REASON"
   else
     info "未检测到 Docker 或残留，无需卸载"
     return 0
@@ -212,7 +247,18 @@ uninstall_docker() {
   info "卸载 Docker 软件包..."
   if command -v apt-get >/dev/null 2>&1; then
     export DEBIAN_FRONTEND=noninteractive
-    apt-get purge -y docker-ce docker-ce-cli docker-buildx-plugin docker-compose-plugin containerd.io docker-ce-rootless-extras docker.io docker-doc docker-compose podman-docker || true
+    local apt_remove_pkgs=()
+    local candidate
+    for candidate in docker-ce docker-ce-cli docker-buildx-plugin docker-compose-plugin containerd.io docker-ce-rootless-extras docker.io docker-doc docker-compose podman-docker; do
+      if dpkg -s "$candidate" >/dev/null 2>&1; then
+        apt_remove_pkgs+=("$candidate")
+      fi
+    done
+    if [[ ${#apt_remove_pkgs[@]} -gt 0 ]]; then
+      apt-get purge -y "${apt_remove_pkgs[@]}" || true
+    else
+      info "没有已安装的 Docker 软件包需要卸载"
+    fi
     apt-get autoremove -y --purge || true
   elif command -v dnf >/dev/null 2>&1; then
     dnf -y remove docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine || true
