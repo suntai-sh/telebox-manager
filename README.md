@@ -14,36 +14,45 @@ TeleBox 多开管理脚本，适合一台机器管理多个 TeleBox 实例。
 
 ---
 
-## 拉取脚本
+## 一键运行
 
 ```bash
-curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/telebox-manager/main/telebox-manager.sh
-chmod +x telebox-manager.sh
+sudo bash <(curl -fsSL https://raw.githubusercontent.com/suntai-sh/telebox-manager/main/telebox-manager.sh)
 ```
+
+运行后会进入数字菜单，按提示选择功能即可。
 
 > 备注：
 >
-> - 建议先 `cat telebox-manager.sh` 或 `less telebox-manager.sh` 看一下脚本内容再执行
 > - 脚本默认安装目录为 `/opt/telebox-multi`
-> - 需要 root 权限运行
+> - 建议使用 root 或 sudo 运行
+> - 如果你想保留脚本到本地，也可以先下载再执行
 
 ---
 
 ## 首次使用
 
-### 1. 如未安装 Docker，先自动安装
+### 推荐方式：直接进入菜单
 
 ```bash
-sudo bash telebox-manager.sh install-docker
+sudo bash <(curl -fsSL https://raw.githubusercontent.com/suntai-sh/telebox-manager/main/telebox-manager.sh)
 ```
 
-### 2. 安装第一个 TeleBox 实例
+运行后可直接通过菜单选择：
 
-```bash
-sudo bash telebox-manager.sh install tg1
-```
+1. 安装 Docker
+2. 安装 TeleBox 实例
+3. 查看实例列表
+4. 启动实例
+5. 停止实例
+6. 重启实例
+7. 查看实例状态
+8. 查看实例日志
+9. 更新实例
+10. 备份实例
+11. 删除实例
 
-安装过程中会提示你输入：
+安装实例时会提示你输入：
 
 - `api_id`
 - `api_hash`
@@ -51,9 +60,11 @@ sudo bash telebox-manager.sh install tg1
 - 验证码
 - 二步验证密码（如果有）
 
-### 3. 安装第二个实例
+### 如果你更喜欢命令行模式
 
 ```bash
+sudo bash telebox-manager.sh install-docker
+sudo bash telebox-manager.sh install tg1
 sudo bash telebox-manager.sh install tg2
 ```
 

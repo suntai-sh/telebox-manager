@@ -333,33 +333,166 @@ remove_instance() {
 show_usage() {
   cat <<EOF
 用法：
-  bash $0 install-docker      自动安装 Docker 与 Compose
-  bash $0 install <实例名>    安装并初始化新实例
-  bash $0 start <实例名>      启动实例
-  bash $0 stop <实例名>       停止实例
-  bash $0 restart <实例名>    重启实例
-  bash $0 update <实例名>     拉取新镜像并重启实例
-  bash $0 backup <实例名>     备份实例 data 和 compose 文件
-  bash $0 logs <实例名>       查看日志
-  bash $0 status <实例名>     查看状态
-  bash $0 list                查看所有实例
-  bash $0 remove <实例名>     删除实例（移入回收区）
+  bash $0                         打开交互菜单
+  bash $0 install-docker          自动安装 Docker 与 Compose
+  bash $0 install <实例名>        安装并初始化新实例
+  bash $0 start <实例名>          启动实例
+  bash $0 stop <实例名>           停止实例
+  bash $0 restart <实例名>        重启实例
+  bash $0 update <实例名>         拉取新镜像并重启实例
+  bash $0 backup <实例名>         备份实例 data 和 compose 文件
+  bash $0 logs <实例名>           查看日志
+  bash $0 status <实例名>         查看状态
+  bash $0 list                    查看所有实例
+  bash $0 remove <实例名>         删除实例（移入回收区）
 
 示例：
-  sudo bash $0 install-docker
+  sudo bash $0
   sudo bash $0 install tg1
-  sudo bash $0 install tg2
   sudo bash $0 update tg1
-  sudo bash $0 backup tg1
-  sudo bash $0 logs tg1
-  sudo bash $0 stop tg2
 EOF
 }
 
-main() {
-  need_root
+prompt_instance_name() {
+  local prompt_text="${1:-请输入实例名}"
+  local name
+  while true; do
+    read -r -p "$prompt_text: " name
+    if [[ -z "$name" ]]; then
+      warn "实例名不能为空"
+      continue
+    fi
+    if [[ ! "$name" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+      warn "实例名只允许字母、数字、点、下划线、短横线"
+      continue
+    fi
+    echo "$name"
+    return 0
+  done
+}
 
-  local action="${1:-}"
+pause_wait() {
+  echo
+  read -r -p "按回车继续..." _
+}
+
+show_menu() {
+  clear 2>/dev/null || true
+  cat <<'EOF'
+==============================
+      TeleBox Manager
+==============================
+1. 安装 Docker
+2. 安装 TeleBox 实例
+3. 查看实例列表
+4. 启动实例
+5. 停止实例
+6. 重启实例
+7. 查看实例状态
+8. 查看实例日志
+9. 更新实例
+10. 备份实例
+11. 删除实例
+12. 查看命令帮助
+0. 退出
+EOF
+}
+
+interactive_menu() {
+  mkdir -p "$BASE_DIR"
+  while true; do
+    show_menu
+    echo
+    read -r -p "请选择功能编号: " choice
+    echo
+    case "$choice" in
+      1)
+        install_docker
+        pause_wait
+        ;;
+      2)
+        check_docker
+        local name
+        name="$(prompt_instance_name '请输入要安装的实例名')"
+        install_instance "$name"
+        pause_wait
+        ;;
+      3)
+        list_instances
+        pause_wait
+        ;;
+      4)
+        check_docker
+        local name
+        name="$(prompt_instance_name '请输入要启动的实例名')"
+        start_instance "$name"
+        pause_wait
+        ;;
+      5)
+        check_docker
+        local name
+        name="$(prompt_instance_name '请输入要停止的实例名')"
+        stop_instance "$name"
+        pause_wait
+        ;;
+      6)
+        check_docker
+        local name
+        name="$(prompt_instance_name '请输入要重启的实例名')"
+        restart_instance "$name"
+        pause_wait
+        ;;
+      7)
+        check_docker
+        local name
+        name="$(prompt_instance_name '请输入要查看状态的实例名')"
+        status_instance "$name"
+        pause_wait
+        ;;
+      8)
+        check_docker
+        local name
+        name="$(prompt_instance_name '请输入要查看日志的实例名')"
+        logs_instance "$name"
+        ;;
+      9)
+        check_docker
+        local name
+        name="$(prompt_instance_name '请输入要更新的实例名')"
+        update_instance "$name"
+        pause_wait
+        ;;
+      10)
+        local name
+        name="$(prompt_instance_name '请输入要备份的实例名')"
+        backup_instance "$name"
+        pause_wait
+        ;;
+      11)
+        check_docker
+        local name
+        name="$(prompt_instance_name '请输入要删除的实例名')"
+        remove_instance "$name"
+        pause_wait
+        ;;
+      12)
+        show_usage
+        pause_wait
+        ;;
+      0)
+        ok "已退出"
+        exit 0
+        ;;
+      *)
+        warn "无效编号，请重新输入"
+        pause_wait
+        ;;
+    esac
+  done
+}
+
+run_action() {
+  local action="$1"
   local name="${2:-}"
 
   case "$action" in
@@ -423,11 +556,24 @@ main() {
       validate_name "$name"
       remove_instance "$name"
       ;;
+    help|-h|--help)
+      show_usage
+      ;;
     *)
       show_usage
       exit 1
       ;;
   esac
+}
+
+main() {
+  need_root
+
+  if [[ $# -eq 0 ]]; then
+    interactive_menu
+  fi
+
+  run_action "$@"
 }
 
 main "$@"
