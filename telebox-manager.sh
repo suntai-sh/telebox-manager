@@ -63,13 +63,13 @@ docker_present_or_residue() {
   fi
 
   if command -v systemctl >/dev/null 2>&1; then
-    if systemctl list-unit-files 2>/dev/null | grep -q '^docker\.service'; then
+    if systemctl is-active docker >/dev/null 2>&1 || systemctl is-enabled docker >/dev/null 2>&1; then
       return 0
     fi
-    if systemctl list-unit-files 2>/dev/null | grep -q '^docker\.socket'; then
+    if systemctl is-active docker.socket >/dev/null 2>&1 || systemctl is-enabled docker.socket >/dev/null 2>&1; then
       return 0
     fi
-    if systemctl list-unit-files 2>/dev/null | grep -q '^containerd\.service'; then
+    if systemctl is-active containerd >/dev/null 2>&1 || systemctl is-enabled containerd >/dev/null 2>&1; then
       return 0
     fi
   fi
@@ -86,11 +86,17 @@ docker_present_or_residue() {
     fi
   fi
 
-  for path in /var/lib/docker /var/lib/containerd /etc/docker /var/run/docker.sock /var/run/containerd/containerd.sock; do
-    if [[ -e "$path" ]]; then
-      return 0
-    fi
-  done
+  if [[ -S /var/run/docker.sock || -S /var/run/containerd/containerd.sock ]]; then
+    return 0
+  fi
+
+  if [[ -d /var/lib/docker ]] && [[ -n "$(find /var/lib/docker -mindepth 1 -maxdepth 1 2>/dev/null | head -n 1)" ]]; then
+    return 0
+  fi
+
+  if [[ -d /var/lib/containerd ]] && [[ -n "$(find /var/lib/containerd -mindepth 1 -maxdepth 1 2>/dev/null | head -n 1)" ]]; then
+    return 0
+  fi
 
   return 1
 }
