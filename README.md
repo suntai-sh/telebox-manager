@@ -14,26 +14,11 @@ TeleBox 多开管理脚本，适合一台机器管理多个 TeleBox 实例。
 
 ---
 
-## 一键拉取脚本
-
-### 方式 1：wget
-
-```bash
-wget -O telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/telebox-manager/main/telebox-manager.sh
-chmod +x telebox-manager.sh
-```
-
-### 方式 2：curl
+## 拉取脚本
 
 ```bash
 curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/telebox-manager/main/telebox-manager.sh
 chmod +x telebox-manager.sh
-```
-
-### 直接下载后执行（建议先看脚本内容）
-
-```bash
-curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/telebox-manager/main/telebox-manager.sh && chmod +x telebox-manager.sh
 ```
 
 > 备注：
