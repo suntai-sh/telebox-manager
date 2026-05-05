@@ -35,21 +35,38 @@ need_root() {
   fi
 }
 
-check_docker() {
+docker_ready() {
   if ! command -v docker >/dev/null 2>&1; then
-    err "未检测到 Docker，请先安装 Docker，或执行：bash $0 install-docker"
-    exit 1
+    return 1
   fi
 
   if ! docker compose version >/dev/null 2>&1; then
-    err "未检测到 Docker Compose 插件，请先安装 docker compose"
+    return 1
+  fi
+
+  if command -v systemctl >/dev/null 2>&1; then
+    if ! systemctl is-enabled docker >/dev/null 2>&1 && ! systemctl is-active docker >/dev/null 2>&1; then
+      return 1
+    fi
+  fi
+
+  if ! docker info >/dev/null 2>&1; then
+    return 1
+  fi
+
+  return 0
+}
+
+check_docker() {
+  if ! docker_ready; then
+    err "未检测到可用的 Docker 环境，请先安装 Docker，或执行：bash $0 install-docker"
     exit 1
   fi
 }
 
 install_docker() {
-  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-    ok "Docker 和 Docker Compose 已安装，无需重复安装"
+  if docker_ready; then
+    ok "Docker 和 Docker Compose 已安装且可用，无需重复安装"
     return 0
   fi
 
