@@ -321,7 +321,7 @@ services:
   telebox:
     image: $IMAGE_NAME
     container_name: telebox-$name
-    restart: unless-stopped
+    restart: "no"
     environment:
       TELEBOX_REPO: https://github.com/TeleBoxOrg/TeleBox.git
       TELEBOX_BRANCH: main
@@ -413,14 +413,37 @@ install_instance() {
   echo "查看日志：sudo bash $0 logs $name"
 }
 
+container_is_running() {
+  local name="$1"
+  docker ps --format '{{.Names}}' | grep -qx "telebox-$name"
+}
+
 start_instance() {
   local name="$1"
   ensure_instance_exists "$name"
-  (
-    cd "$(instance_dir "$name")"
-    docker compose up -d
-  )
-  ok "已启动：$name"
+
+  local dir attempt
+  dir="$(instance_dir "$name")"
+
+  for attempt in 1 2 3; do
+    info "启动实例：$name（第 ${attempt}/3 次尝试）"
+    (
+      cd "$dir"
+      docker compose up -d
+    )
+
+    sleep 2
+    if container_is_running "$name"; then
+      ok "已启动：$name"
+      return 0
+    fi
+
+    warn "实例启动失败：$name（第 ${attempt}/3 次）"
+  done
+
+  err "实例连续 3 次启动失败，已停止自动重试：$name"
+  warn "请使用“查看日志”排查问题"
+  return 1
 }
 
 stop_instance() {
@@ -439,9 +462,8 @@ restart_instance() {
   (
     cd "$(instance_dir "$name")"
     docker compose down
-    docker compose up -d
   )
-  ok "已重启：$name"
+  start_instance "$name"
 }
 
 logs_instance() {
@@ -466,18 +488,56 @@ list_instances() {
   mkdir -p "$BASE_DIR"
   info "实例列表："
 
-  local found=0
+  local found=0 idx=1
   for dir in "$BASE_DIR"/*; do
     [[ -d "$dir" ]] || continue
     local name
     name="$(basename "$dir")"
+    [[ "$name" == "backups" || "$name" == ".trash" ]] && continue
     found=1
-    echo "- $name"
+    echo "$idx. $name"
+    idx=$((idx + 1))
   done
 
   if [[ "$found" -eq 0 ]]; then
     warn "暂无实例"
   fi
+}
+
+choose_instance() {
+  local prompt_text="${1:-请选择实例编号}"
+  local instances=()
+  local dir name idx choice max_index
+
+  for dir in "$BASE_DIR"/*; do
+    [[ -d "$dir" ]] || continue
+    name="$(basename "$dir")"
+    [[ "$name" == "backups" || "$name" == ".trash" ]] && continue
+    instances+=("$name")
+  done
+
+  if [[ ${#instances[@]} -eq 0 ]]; then
+    warn "暂无实例"
+    return 1
+  fi
+
+  info "实例列表："
+  for idx in "${!instances[@]}"; do
+    echo "$((idx + 1)). ${instances[$idx]}"
+  done
+
+  max_index=${#instances[@]}
+  while true; do
+    read -r -p "$prompt_text (1-$max_index, 0返回): " choice
+    if [[ "$choice" == "0" ]]; then
+      return 1
+    fi
+    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= max_index )); then
+      PROMPT_RESULT="${instances[$((choice - 1))]}"
+      return 0
+    fi
+    warn "请输入有效编号"
+  done
 }
 
 backup_instance() {
@@ -642,8 +702,9 @@ interactive_menu() {
         ;;
       4)
         check_docker
-        prompt_instance_name '请输入要重新初始化的实例名'
-        run_instance_login "$PROMPT_RESULT"
+        if choose_instance '请选择要重新初始化的实例'; then
+          run_instance_login "$PROMPT_RESULT"
+        fi
         pause_wait
         ;;
       5)
@@ -652,51 +713,57 @@ interactive_menu() {
         ;;
       6)
         check_docker
-        prompt_instance_name '请输入要启动的实例名'
-        start_instance "$PROMPT_RESULT"
+        if choose_instance '请选择要启动的实例'; then
+          start_instance "$PROMPT_RESULT"
+        fi
         pause_wait
         ;;
       7)
         check_docker
-        prompt_instance_name '请输入要停止的实例名'
-        stop_instance "$PROMPT_RESULT"
+        if choose_instance '请选择要停止的实例'; then
+          stop_instance "$PROMPT_RESULT"
+        fi
         pause_wait
         ;;
       8)
         check_docker
-        prompt_instance_name '请输入要重启的实例名'
-        restart_instance "$PROMPT_RESULT"
+        if choose_instance '请选择要重启的实例'; then
+          restart_instance "$PROMPT_RESULT"
+        fi
         pause_wait
         ;;
       9)
         check_docker
-        prompt_instance_name '请输入要查看状态的实例名'
-        status_instance "$PROMPT_RESULT"
+        if choose_instance '请选择要查看状态的实例'; then
+          status_instance "$PROMPT_RESULT"
+        fi
         pause_wait
         ;;
       10)
         check_docker
-        prompt_instance_name '请输入要查看日志的实例名'
-        logs_instance "$PROMPT_RESULT"
+        if choose_instance '请选择要查看日志的实例'; then
+          logs_instance "$PROMPT_RESULT"
+        fi
         ;;
       11)
         check_docker
-        prompt_instance_name '请输入要更新的实例名'
-        update_instance "$PROMPT_RESULT"
+        if choose_instance '请选择要更新的实例'; then
+          update_instance "$PROMPT_RESULT"
+        fi
         pause_wait
         ;;
       12)
-        prompt_instance_name '请输入要备份的实例名'
-        backup_instance "$PROMPT_RESULT"
+        if choose_instance '请选择要备份的实例'; then
+          backup_instance "$PROMPT_RESULT"
+        fi
         pause_wait
         ;;
       13)
         check_docker
-        list_instances
-        echo
         warn "上面是当前可删除的实例列表"
-        prompt_instance_name '请输入要删除的实例名'
-        remove_instance "$PROMPT_RESULT"
+        if choose_instance '请选择要删除的实例'; then
+          remove_instance "$PROMPT_RESULT"
+        fi
         pause_wait
         ;;
       14)

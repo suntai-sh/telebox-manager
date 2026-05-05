@@ -54,6 +54,8 @@ curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/tel
 12. 备份实例
 13. 删除实例
 
+除“安装实例”外，其它实例相关操作已改为先显示实例列表，再通过数字编号选择。
+
 安装实例时会提示你输入：
 
 - `api_id`
@@ -69,6 +71,8 @@ curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/tel
 即可重新进入登录流程，无需删除实例重装。
 
 脚本现在会保留实例目录，并返回菜单，不会因为一次输错就把整个脚本退出回 shell。
+
+实例容器默认关闭无限自动重启；脚本会在启动时最多自动尝试 3 次，3 次失败后停止重试，避免容器一直重启刷屏。
 
 ### 如果你更喜欢命令行模式
 
