@@ -68,6 +68,8 @@ curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/tel
 
 即可重新进入登录流程，无需删除实例重装。
 
+脚本现在会保留实例目录，并返回菜单，不会因为一次输错就把整个脚本退出回 shell。
+
 ### 如果你更喜欢命令行模式
 
 ```bash
@@ -167,7 +169,7 @@ sudo bash telebox-manager.sh remove tg1
 - `workspace/`：TeleBox 代码目录
 - `data/`：账号会话、配置、日志等数据目录
 - `backups/`：备份文件目录
-- `.trash/`：删除实例后的回收区
+- `.trash/`：删除实例后的回收区（不会自动过期删除，需手动清理）
 
 ---
 

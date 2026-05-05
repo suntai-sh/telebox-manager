@@ -336,29 +336,40 @@ services:
 EOF
 }
 
+LOGIN_SESSION_READY=0
+
 run_instance_login() {
   local name="$1"
   ensure_instance_exists "$name"
 
-  local dir session_file
+  local dir session_file login_code
   dir="$(instance_dir "$name")"
   session_file="$dir/data/my_session.session"
+  LOGIN_SESSION_READY=0
 
   warn "即将进入实例登录/初始化流程：$name"
   warn "如果输错了 api_id、api_hash 或手机号，可按 Ctrl+C 退出后重新进入本功能"
   echo
 
+  set +e
   (
     cd "$dir"
     docker compose run --rm telebox npm start
   )
+  login_code=$?
+  set -e
+
+  if [[ "$login_code" -ne 0 ]]; then
+    warn "登录/初始化流程已退出，退出码：$login_code"
+  fi
 
   if [[ ! -f "$session_file" ]]; then
     warn "未检测到会话文件：$session_file"
     warn "如果刚才中途输错或主动退出，这是正常的；重新执行“重新初始化实例”即可"
-    return 1
+    return 0
   fi
 
+  LOGIN_SESSION_READY=1
   ok "实例登录/初始化完成：$name"
   return 0
 }
@@ -383,10 +394,12 @@ install_instance() {
   ok "实例已创建：$name"
   echo
 
-  if ! run_instance_login "$name"; then
+  run_instance_login "$name"
+
+  if [[ "$LOGIN_SESSION_READY" -ne 1 ]]; then
     warn "首次初始化未完成，实例目录已保留：$dir"
     warn "你可以稍后通过“重新初始化实例”继续登录"
-    return 1
+    return 0
   fi
 
   info "启动后台服务：$name"
@@ -511,7 +524,9 @@ remove_instance() {
   target="$trash_dir/${name}-${ts}"
 
   warn "即将删除实例：$name"
+  warn "实例目录：$dir"
   warn "实例目录将移动到回收区：$target"
+  warn "回收区不会自动过期删除，会一直保留，除非你手动清理 $trash_dir"
   read -r -p "确认删除请输入 yes: " confirm
 
   if [[ "$confirm" != "yes" ]]; then
@@ -677,6 +692,9 @@ interactive_menu() {
         ;;
       13)
         check_docker
+        list_instances
+        echo
+        warn "上面是当前可删除的实例列表"
         prompt_instance_name '请输入要删除的实例名'
         remove_instance "$PROMPT_RESULT"
         pause_wait
