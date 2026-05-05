@@ -89,6 +89,77 @@ install_docker() {
   ok "Docker 安装完成"
 }
 
+uninstall_docker() {
+  warn "该操作会删除整台机器的全部 Docker 内容，包括："
+  warn "- 所有容器"
+  warn "- 所有镜像"
+  warn "- 所有卷"
+  warn "- 所有自定义网络"
+  warn "- Docker 程序与数据目录"
+  echo
+  read -r -p "确认卸载 Docker 并删除全部 Docker 数据请输入 yes: " confirm
+
+  if [[ "$confirm" != "yes" ]]; then
+    info "已取消"
+    return 0
+  fi
+
+  if ! command -v docker >/dev/null 2>&1; then
+    warn "未检测到 Docker，继续尝试清理残留包和目录"
+  fi
+
+  info "停止并删除所有容器..."
+  local ids imgs vols
+  ids="$(docker ps -aq 2>/dev/null || true)"
+  if [[ -n "$ids" ]]; then
+    docker rm -f $ids || true
+  else
+    info "没有容器需要删除"
+  fi
+
+  info "删除所有镜像..."
+  imgs="$(docker images -aq 2>/dev/null | sort -u || true)"
+  if [[ -n "$imgs" ]]; then
+    docker rmi -f $imgs || true
+  else
+    info "没有镜像需要删除"
+  fi
+
+  info "删除所有卷..."
+  vols="$(docker volume ls -q 2>/dev/null || true)"
+  if [[ -n "$vols" ]]; then
+    docker volume rm -f $vols || true
+  else
+    info "没有卷需要删除"
+  fi
+
+  info "删除自定义网络..."
+  local net
+  for net in $(docker network ls --format '{{.Name}}' 2>/dev/null | grep -Ev '^(bridge|host|none)$' || true); do
+    docker network rm "$net" || true
+  done
+
+  info "停止 Docker 服务..."
+  systemctl stop docker docker.socket containerd 2>/dev/null || true
+  systemctl disable docker docker.socket containerd 2>/dev/null || true
+
+  info "卸载 Docker 软件包..."
+  if command -v apt-get >/dev/null 2>&1; then
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get purge -y docker-ce docker-ce-cli docker-buildx-plugin docker-compose-plugin containerd.io docker-ce-rootless-extras docker.io docker-doc docker-compose podman-docker || true
+    apt-get autoremove -y --purge || true
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf -y remove docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine || true
+  elif command -v yum >/dev/null 2>&1; then
+    yum -y remove docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine || true
+  fi
+
+  info "删除 Docker 数据目录..."
+  rm -rf /var/lib/docker /var/lib/containerd /etc/docker /var/run/docker.sock /var/run/containerd/containerd.sock
+
+  ok "Docker 及全部 Docker 数据已卸载/清理完成"
+}
+
 validate_name() {
   local name="${1:-}"
   if [[ -z "$name" ]]; then
@@ -335,6 +406,7 @@ show_usage() {
 用法：
   bash $0                         打开交互菜单
   bash $0 install-docker          自动安装 Docker 与 Compose
+  bash $0 uninstall-docker        卸载 Docker 并删除全部 Docker 数据
   bash $0 install <实例名>        安装并初始化新实例
   bash $0 start <实例名>          启动实例
   bash $0 stop <实例名>           停止实例
@@ -385,17 +457,18 @@ show_menu() {
       TeleBox Manager
 ==============================
 1. 安装 Docker
-2. 安装 TeleBox 实例
-3. 查看实例列表
-4. 启动实例
-5. 停止实例
-6. 重启实例
-7. 查看实例状态
-8. 查看实例日志
-9. 更新实例
-10. 备份实例
-11. 删除实例
-12. 查看命令帮助
+2. 卸载 Docker
+3. 安装 TeleBox 实例
+4. 查看实例列表
+5. 启动实例
+6. 停止实例
+7. 重启实例
+8. 查看实例状态
+9. 查看实例日志
+10. 更新实例
+11. 备份实例
+12. 删除实例
+13. 查看命令帮助
 0. 退出
 EOF
 }
@@ -413,62 +486,66 @@ interactive_menu() {
         pause_wait
         ;;
       2)
+        uninstall_docker
+        pause_wait
+        ;;
+      3)
         check_docker
         prompt_instance_name '请输入要安装的实例名'
         install_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      3)
+      4)
         list_instances
         pause_wait
         ;;
-      4)
+      5)
         check_docker
         prompt_instance_name '请输入要启动的实例名'
         start_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      5)
+      6)
         check_docker
         prompt_instance_name '请输入要停止的实例名'
         stop_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      6)
+      7)
         check_docker
         prompt_instance_name '请输入要重启的实例名'
         restart_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      7)
+      8)
         check_docker
         prompt_instance_name '请输入要查看状态的实例名'
         status_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      8)
+      9)
         check_docker
         prompt_instance_name '请输入要查看日志的实例名'
         logs_instance "$PROMPT_RESULT"
         ;;
-      9)
+      10)
         check_docker
         prompt_instance_name '请输入要更新的实例名'
         update_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      10)
+      11)
         prompt_instance_name '请输入要备份的实例名'
         backup_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      11)
+      12)
         check_docker
         prompt_instance_name '请输入要删除的实例名'
         remove_instance "$PROMPT_RESULT"
         pause_wait
         ;;
-      12)
+      13)
         show_usage
         pause_wait
         ;;
@@ -491,6 +568,9 @@ run_action() {
   case "$action" in
     install-docker)
       install_docker
+      ;;
+    uninstall-docker)
+      uninstall_docker
       ;;
     install)
       check_docker

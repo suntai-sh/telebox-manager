@@ -41,16 +41,17 @@ curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/tel
 运行后可直接通过菜单选择：
 
 1. 安装 Docker
-2. 安装 TeleBox 实例
-3. 查看实例列表
-4. 启动实例
-5. 停止实例
-6. 重启实例
-7. 查看实例状态
-8. 查看实例日志
-9. 更新实例
-10. 备份实例
-11. 删除实例
+2. 卸载 Docker
+3. 安装 TeleBox 实例
+4. 查看实例列表
+5. 启动实例
+6. 停止实例
+7. 重启实例
+8. 查看实例状态
+9. 查看实例日志
+10. 更新实例
+11. 备份实例
+12. 删除实例
 
 安装实例时会提示你输入：
 
@@ -64,6 +65,7 @@ curl -fsSL -o telebox-manager.sh https://raw.githubusercontent.com/suntai-sh/tel
 
 ```bash
 sudo bash telebox-manager.sh install-docker
+sudo bash telebox-manager.sh uninstall-docker
 sudo bash telebox-manager.sh install tg1
 sudo bash telebox-manager.sh install tg2
 ```
