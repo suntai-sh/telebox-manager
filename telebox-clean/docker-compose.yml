@@ -1,0 +1,15 @@
+services:
+  telebox:
+    build: .
+    container_name: telebox-clean
+    restart: unless-stopped
+    environment:
+      TELEBOX_REPO: https://github.com/TeleBoxOrg/TeleBox.git
+      TELEBOX_BRANCH: main
+      TELEBOX_WORKSPACE: /workspace
+      TELEBOX_DATA: /data
+      TZ: Asia/Shanghai
+    volumes:
+      - ./workspace:/workspace
+      - ./data:/data
+    command: ["npm", "start"]

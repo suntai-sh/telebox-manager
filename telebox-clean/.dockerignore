@@ -1,0 +1,5 @@
+data
+workspace/node_modules
+workspace/logs
+workspace/temp
+.git

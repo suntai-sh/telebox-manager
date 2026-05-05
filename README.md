@@ -170,6 +170,15 @@ sudo bash telebox-manager.sh remove tg1
 
 ---
 
+## 仓库内容
+
+- `telebox-manager.sh`：多开管理脚本
+- `telebox-clean/`：干净版 TeleBox Docker 运行时文件
+  - `Dockerfile`
+  - `docker-compose.yml`
+  - `entrypoint.sh`
+  - `README.md`
+
 ## 项目地址
 
 - GitHub 仓库：<https://github.com/suntai-sh/telebox-manager>
